@@ -1,3 +1,12 @@
+---
+title: OpenEnv Customer Support
+emoji: 🛠️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # OpenEnv Customer Support Simulation
 
 A production-grade RL environment for an OpenEnv submission simulating a real-world helpdesk/customer support workflow.
