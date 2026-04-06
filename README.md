@@ -45,6 +45,8 @@ Return a single JSON matching one of these:
 2. Run Validate: `openenv validate`
 3. Run Local Inference Baseline:
    ```bash
-   export HF_TOKEN="your_key"
+   export HF_TOKEN="your_hugging_face_token"
+   export API_BASE_URL="https://router.huggingface.co/v1"
+   export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
    python inference.py
    ```
