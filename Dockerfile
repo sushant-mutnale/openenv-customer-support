@@ -11,4 +11,4 @@ COPY . .
 EXPOSE 7860
 
 # Boot the FastAPI via Uvicorn explicitly decoupled from baseline runner
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]

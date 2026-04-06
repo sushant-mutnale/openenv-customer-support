@@ -16,3 +16,6 @@ dependencies = [
     "uvicorn",
     "httpx"
 ]
+
+[project.scripts]
+server = "server.app:start"
