@@ -1,0 +1,27 @@
+name: "openenv-customer-support"
+description: "A heavily robust RL environment simulating a customer support agent workflow. Models must converse, diagnose, classify, and conditionally escalate or resolve complex technical and billing issues using strict multi-step JSON logic."
+
+observation_schema:
+  type: "object"
+  properties:
+    ticket:
+      type: "string"
+    conversation_history:
+      type: "array"
+      items:
+        type: "string"
+    last_tool_output:
+      type: "string"
+    remaining_steps:
+      type: "integer"
+
+action_schema:
+  type: "object"
+  properties:
+    action_type:
+      type: "string"
+      enum: ["classify", "ask_user", "use_tool", "resolve", "escalate"]
+    payload:
+      type: "object"
+
+reward_spec: "Sparse + dense trajectory matching logic assigning partial rewards for sub-commands and heavy positive/negative resolution tracking normalized to [0,1]."
