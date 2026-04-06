@@ -10,9 +10,9 @@ from tasks import load_tasks
 from env import CustomerSupportEnv
 from models import ActionType, ActionClassify, ActionAskUser, ActionUseTool, ActionResolve, ActionEscalate
 
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 BENCHMARK = "customer_support"
 MAX_TOKENS = 500
@@ -60,7 +60,7 @@ def parse_action(json_str: str) -> ActionType:
         return ActionAskUser(action_type="ask_user", payload={"question": f"Parse error: {e}"})
 
 async def main():
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     tasks = load_tasks("tasks_refined.json")
     
     if not tasks:
