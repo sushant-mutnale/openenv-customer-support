@@ -116,5 +116,5 @@ class TaskGrader:
         return reward
         
     def final_score(self) -> float:
-        # Guarantee mathematical compliance by bounding to strictly [0.0, 1.0] exactly as spec requires
-        return min(max(self.score, 0.0), 1.0)
+        # Guarantee mathematical compliance by bounding to strictly (0.0, 1.0) exactly as spec requires
+        return min(max(self.score, 0.01), 0.99)
