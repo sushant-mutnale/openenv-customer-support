@@ -6,67 +6,113 @@ class TaskGrader:
         self.history = []
         self.score = 0.0
         
-        # Trajectory tracking for hard-mode sequences
+        # Trajectory tracking for sequence completeness
+        self.has_replied = False
         self.has_asked_context = False
         self.has_used_valid_tool = False
+        self.has_escalated = False
 
     def evaluate_action(self, action: ActionType) -> float:
+        """
+        Dense reward shaping targeting [0.0, 1.0] scale per step.
+        """
         reward = 0.0
+        diff = self.task.difficulty
+        act_type = action.action_type
         
-        if action.action_type == "classify":
-            cat = action.payload.get("category", "").lower()
-            if cat == self.task.ground_truth.category.lower():
-                reward += 0.2
-            else:
+        # Penalize repeating exactly the same action type immediately
+        if len(self.history) > 0 and self.history[-1]['action_type'] == act_type:
+            # We allow repeating replies, but repeating tools or questions is bad
+            if act_type in ["ask_user", "use_tool"]:
                 reward -= 0.1
                 
-        elif action.action_type == "ask_user":
-            if action.payload.get("question") in [h.get("question") for h in self.history if h.get("action_type")=="ask_user"]:
-                reward -= 0.1 # Penalty for repetition
-            else:
-                reward += 0.1
-                self.has_asked_context = True # Agent appropriately asked questions
+        if act_type == "reply":
+            msg = action.payload.get("message", "").lower()
+            if diff == "easy":
+                if "https://portal.company.com/reset" in msg:
+                    reward += 0.5
+                    self.has_replied = True
+                else:
+                    reward -= 0.2
+            elif diff == "medium":
+                if "dispatched" in msg:
+                    reward += 0.3
+                    self.has_replied = True
+            elif diff == "hard":
+                if "refund" in msg and ("cannot" in msg or "deny" in msg or "non-refundable" in msg or "strict" in msg):
+                    reward += 0.3
+                    self.has_replied = True
 
-        elif action.action_type == "use_tool":
+        elif act_type == "ask_user":
+            if diff == "medium":
+                q = action.payload.get("question", "").lower()
+                if "order" in q or "id" in q:
+                    reward += 0.2
+                    self.has_asked_context = True
+                else:
+                    reward -= 0.1
+            else:
+                # Asking user in easy/hard is a waste of steps based on the context given
+                reward -= 0.1
+
+        elif act_type == "use_tool":
             tool = action.payload.get("tool")
             input_val = action.payload.get("input", "")
             
-            if tool in [h.get("tool") for h in self.history if h.get("action_type")=="use_tool"]:
-                reward -= 0.1 # Repetition penalty
-            else:
-                # HARD MODE Sequence evaluation check!
-                if "ORD-9921" in input_val or "TRX-551" in input_val:
+            if diff == "medium":
+                if tool == "check_order_status" and "ORD-9921" in input_val:
                     if not self.has_asked_context:
-                        # Cheating / hallucination penalty (agent just guessed the ID without asking user!)
-                        reward -= 0.4
+                        reward -= 0.3 # Cheating hallucination
                     else:
-                        # Valid contextual sequence!
                         reward += 0.3
                         self.has_used_valid_tool = True
                 else:
-                    # Valid attempt but maybe wrong context input
-                    reward += 0.1
-                    
-        elif action.action_type == "resolve":
-            if self.task.ground_truth.requires_escalation:
-                reward -= 0.3 # Should have escalated!
-            else:
-                if self.task.difficulty == "hard":
-                    if self.has_used_valid_tool and self.has_asked_context:
-                        reward += 0.5 # Perfect hard-mode sequence completeness
-                    else:
-                        reward += 0.1 # Premature resolution
+                    reward -= 0.2
+
+            elif diff == "hard":
+                if tool == "check_payment" and "TRX-551" in input_val:
+                    reward += 0.3
+                    self.has_used_valid_tool = True
+                elif tool == "issue_refund":
+                    # Instant fail scenario basically
+                    reward -= 0.5
                 else:
-                    reward += 0.4 # Default easy/medium resolution success
-                    
-        elif action.action_type == "escalate":
-            if self.task.ground_truth.requires_escalation:
-                reward += 0.4
-            else:
-                reward -= 0.2
+                    reward -= 0.1
+
+        elif act_type == "close_ticket":
+            if diff == "easy":
+                if self.has_replied:
+                    reward += 0.5
+                else:
+                    reward -= 0.4
+            elif diff == "medium":
+                if self.has_replied and self.has_used_valid_tool:
+                    reward += 0.2
+                else:
+                    reward -= 0.3
+            elif diff == "hard":
+                # Hard task strictly requires escalation, not resolution
+                reward -= 0.5
                 
-        self.history.append({"action_type": action.action_type, **action.payload})
+        elif act_type == "escalate":
+            if diff == "hard":
+                if self.has_replied and self.has_used_valid_tool:
+                    reward += 0.4
+                    self.has_escalated = True
+                else:
+                    # Escalated prematurely without checking policy/tool
+                    reward += 0.1
+            else:
+                # Escalating an easy/medium task is a failure
+                reward -= 0.5
+
+        # Record action in history
+        self.history.append({"action_type": act_type, **action.payload})
+        
+        # Mathematically ensure the accumulative score stays bounded. 
+        # Rewards can be negative intermediately (punishments), but we add them to the total.
         self.score += reward
+        
         return reward
         
     def final_score(self) -> float:

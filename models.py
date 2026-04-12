@@ -9,8 +9,8 @@ class GroundTruth(BaseModel):
 
 class TaskInput(BaseModel):
     ticket: str
-    user_type: str
-    channel: str
+    customer_profile: str
+    policy_snippets: str
 
 class Constraints(BaseModel):
     max_steps: int
@@ -23,8 +23,8 @@ class Task(BaseModel):
     constraints: Constraints
     difficulty: Literal["easy", "medium", "hard"]
 
-class ActionClassify(BaseModel):
-    action_type: Literal["classify"]
+class ActionReply(BaseModel):
+    action_type: Literal["reply"]
     payload: Dict[str, str]
 
 class ActionAskUser(BaseModel):
@@ -35,18 +35,20 @@ class ActionUseTool(BaseModel):
     action_type: Literal["use_tool"]
     payload: Dict[str, str]
 
-class ActionResolve(BaseModel):
-    action_type: Literal["resolve"]
-    payload: Dict[str, str]
+class ActionCloseTicket(BaseModel):
+    action_type: Literal["close_ticket"]
+    payload: Dict[str, str] = {}
 
 class ActionEscalate(BaseModel):
     action_type: Literal["escalate"]
     payload: Dict[str, str] = {}
 
-ActionType = Union[ActionClassify, ActionAskUser, ActionUseTool, ActionResolve, ActionEscalate]
+ActionType = Union[ActionReply, ActionAskUser, ActionUseTool, ActionCloseTicket, ActionEscalate]
 
 class EnvironmentObservation(BaseModel):
     ticket: str
+    customer_profile: str
+    policy_snippets: str
     conversation_history: List[str]
     last_tool_output: Optional[str]
     remaining_steps: int

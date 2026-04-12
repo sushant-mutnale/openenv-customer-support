@@ -8,39 +8,24 @@ def load_tasks(filepath: str) -> List[Task]:
         
     parsed_tasks = []
     
-    for idx, t in enumerate(data):
-        if not t.get("refined"):
-            continue
-            
-        task_id = t.get("task_id")
-        if not task_id:
-            raise ValueError(f"Task at index {idx} completely missing task_id")
-            
+    for t in data:
         difficulty = t.get("difficulty")
-        if difficulty not in ["easy", "medium", "hard"]:
-            raise ValueError(f"Task {task_id} has invalid difficulty '{difficulty}'. Must be easy, medium, or hard.")
-            
+        task_id = t.get("task_id")
         ideal_steps = t.get("ideal_steps")
-        if not ideal_steps or not isinstance(ideal_steps, list):
-            raise ValueError(f"Task {task_id} must have hidden ideal_steps list.")
-            
         gt = t.get("ground_truth", {})
-        if "requires_escalation" not in gt:
-            raise ValueError(f"Task {task_id} missing requires_escalation attribute.")
-
         input_data = t.get("input", {})
         
         task_data = {
             "task_id": task_id,
             "input": {
                 "ticket": input_data.get("ticket", ""),
-                "user_type": input_data.get("user_type", "Standard"), 
-                "channel": input_data.get("channel", "Email")
+                "customer_profile": input_data.get("customer_profile", ""), 
+                "policy_snippets": input_data.get("policy_snippets", "")
             },
             "ground_truth": {
-                "category": input_data.get("category", "General Request"),
-                "priority": input_data.get("priority", "medium"),
-                "resolution": "Resolution evaluated via trajectory steps and logic.",
+                "category": gt.get("category", ""),
+                "priority": gt.get("priority", "medium"),
+                "resolution": gt.get("resolution", ""),
                 "requires_escalation": gt.get("requires_escalation", False)
             },
             "ideal_steps": ideal_steps,

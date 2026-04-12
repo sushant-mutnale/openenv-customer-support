@@ -8,13 +8,13 @@ from typing import Dict, Any
 
 from env import CustomerSupportEnv
 from tasks import load_tasks
-from models import ActionType, ActionClassify, ActionAskUser, ActionUseTool, ActionResolve, ActionEscalate
+from models import ActionType, ActionReply, ActionAskUser, ActionUseTool, ActionCloseTicket, ActionEscalate
 
 app = FastAPI(title="OpenEnv Customer Support", description="Hugging Face Space strict container validation endpoint.")
 
 # Load tasks into memory
 try:
-    TASKS = load_tasks("tasks_refined.json")
+    TASKS = load_tasks("tasks.json")
 except Exception as e:
     TASKS = []
     print(f"Failed to load tasks: {e}")
@@ -53,12 +53,12 @@ async def step(request: StepRequest):
     payload = request.payload
     
     try:
-        if action_type == "classify": action = ActionClassify(action_type=action_type, payload=payload)
+        if action_type == "reply": action = ActionReply(action_type=action_type, payload=payload)
         elif action_type == "ask_user": action = ActionAskUser(action_type=action_type, payload=payload)
         elif action_type == "use_tool": action = ActionUseTool(action_type=action_type, payload=payload)
-        elif action_type == "resolve": action = ActionResolve(action_type=action_type, payload=payload)
+        elif action_type == "close_ticket": action = ActionCloseTicket(action_type=action_type, payload=payload)
         elif action_type == "escalate": action = ActionEscalate(action_type=action_type, payload=payload)
-        else: raise ValueError("Unknown action_type")
+        else: raise ValueError(f"Unknown action_type {action_type}")
     except Exception as e:
         # Invalid schema safety fallback
         action = ActionAskUser(action_type="ask_user", payload={"question": f"SYSTEM_PARSE_ERROR: {str(e)}"})

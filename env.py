@@ -1,4 +1,5 @@
 from typing import Any
+from pydantic import BaseModel
 from models import Task, EnvironmentObservation, EnvironmentState
 from grader import TaskGrader
 
@@ -29,6 +30,8 @@ class CustomerSupportEnv:
     def _get_observation(self, reward: float) -> EnvResult:
         obs = EnvironmentObservation(
             ticket=self.task.input.ticket,
+            customer_profile=self.task.input.customer_profile,
+            policy_snippets=self.task.input.policy_snippets,
             conversation_history=self.conversation_history,
             last_tool_output=self.last_tool_output,
             remaining_steps=self.max_steps - self.current_step
@@ -53,15 +56,21 @@ class CustomerSupportEnv:
         
         # Action Simulator Logic
         action_type = action.action_type
-        if action_type == "ask_user":
-            question = action.payload.get('question', '').lower()
-            self.conversation_history.append(f"AGENT: {action.payload.get('question')}")
+        
+        if action_type == "reply":
+            msg = action.payload.get('message', '')
+            self.conversation_history.append(f"AGENT: {msg}")
             
-            # Simple contextual match mock
-            if "order" in question:
-                self.conversation_history.append(f"USER: My order ID is ORD-9921.")
-            elif "payment" in question or "transaction" in question:
-                self.conversation_history.append(f"USER: The transaction ID is TRX-551.")
+        elif action_type == "ask_user":
+            question = action.payload.get('question', '').lower()
+            self.conversation_history.append(f"AGENT (Ask): {question}")
+            
+            # Simple contextual match mock mapped to specific tasks
+            if self.task.difficulty == "medium":
+                if "order" in question or "id" in question:
+                    self.conversation_history.append(f"USER: My order ID is ORD-9921.")
+                else:
+                    self.conversation_history.append(f"USER: I don't understand, just tell me where my order is.")
             else:
                 self.conversation_history.append(f"USER: This issue is severely impacting my workflow, please fix immediately.")
 
@@ -77,7 +86,10 @@ class CustomerSupportEnv:
                     self.last_tool_output = '{"error": "Invalid Order ID or missing context."}'
                     
             elif tool == "check_payment":
-                self.last_tool_output = '{"status": "paid", "balance": 0.0, "last_transaction": "TRX-551"}'
+                if "TRX-551" in input_val:
+                    self.last_tool_output = '{"status": "paid", "amount_refundable": 0.0, "item_type": "digital"}'
+                else:
+                    self.last_tool_output = '{"error": "Invalid transaction ID."}'
                 
             elif tool == "issue_refund":
                 if "TRX-551" in input_val:
@@ -90,13 +102,15 @@ class CustomerSupportEnv:
             else:
                 self.last_tool_output = f'{{"error": "Tool {tool} not recognized."}}'
             
-            self.conversation_history.append(f"SYSTEM: Invoked tool '{tool}'.")
+            self.conversation_history.append(f"SYSTEM: Invoked tool '{tool}'. Output: {self.last_tool_output[:50]}...")
             
-        elif action_type in ["resolve", "escalate"]:
-            if action_type == "resolve":
-                self.conversation_history.append(f"AGENT RESOLVED: {action.payload.get('resolution')}")
-            else:
-                self.conversation_history.append(f"AGENT ESCALATED: Sent to Tier 2 support.")
+        elif action_type == "close_ticket":
+            self.conversation_history.append(f"AGENT RESOLVED: {action.payload.get('resolution', '')}")
+            self.done = True
+            
+        elif action_type == "escalate":
+            reason = action.payload.get('reason', '')
+            self.conversation_history.append(f"AGENT ESCALATED: {reason}")
             self.done = True
 
         if self.current_step >= self.max_steps:
